@@ -42,6 +42,7 @@ const (
 	_targetKafka         = "KAFKA"
 	_targetElasticsearch = "ELASTICSEARCH"
 	_targetScript        = "SCRIPT"
+	_targetMysql         = "MYSQL"
 
 	RedisGroupTypeSentinel = "sentinel"
 	RedisGroupTypeCluster  = "cluster"
@@ -111,6 +112,11 @@ type Config struct {
 	MongodbUsername string `yaml:"mongodb_username"` //mongodb用户名，默认为空
 	MongodbPassword string `yaml:"mongodb_password"` //mongodb密码，默认为空
 
+	// ------------------- MYSQL -----------------
+	MysqlAddr     string `yaml:"mysql_addrs"`    //mysql地址，多个用逗号分隔
+	MysqlUsername string `yaml:"mysql_username"` //mysql用户名，默认为空
+	MysqlPassword string `yaml:"mysql_password"` //mysql密码，默认为空
+
 	// ------------------- RABBITMQ -----------------
 	RabbitmqAddr string `yaml:"rabbitmq_addr"` //连接字符串,如: amqp://guest:guest@localhost:5672/
 
@@ -130,13 +136,17 @@ type Config struct {
 }
 
 type Cluster struct {
-	Name             string `yaml:"name"`
-	BindIp           string `yaml:"bind_ip"` //绑定IP
-	ZkAddrs          string `yaml:"zk_addrs"`
-	ZkAuthentication string `yaml:"zk_authentication"`
-	EtcdAddrs        string `yaml:"etcd_addrs"`
-	EtcdUser         string `yaml:"etcd_user"`
-	EtcdPassword     string `yaml:"etcd_password"`
+	Name                 string `yaml:"name"`
+	BindIp               string `yaml:"bind_ip"` //绑定IP
+	ZkAddrs              string `yaml:"zk_addrs"`
+	ZkAuthentication     string `yaml:"zk_authentication"`
+	EtcdAddrs            string `yaml:"etcd_addrs"`
+	EtcdUser             string `yaml:"etcd_user"`
+	EtcdPassword         string `yaml:"etcd_password"`
+	EtcdSecureConnection bool   `yaml:"etcd_secure_connection"`
+	EtcdCertFile         string `yaml:"etcd_cert_file"`
+	EtcdKeyFile          string `yaml:"etcd_key_file"`
+	EtcdTrustedCaFile    string `yaml:"etcd_trusted_ca_file"`
 }
 
 func initConfig(fileName string) error {
@@ -182,6 +192,10 @@ func initConfig(fileName string) error {
 		}
 	case _targetElasticsearch:
 		if err := checkElsConfig(&c); err != nil {
+			return errors.Trace(err)
+		}
+	case _targetMysql:
+		if err := checkMysqlConfig(&c); err != nil {
 			return errors.Trace(err)
 		}
 	case _targetScript:
@@ -351,6 +365,14 @@ func checkMongodbConfig(c *Config) error {
 	return nil
 }
 
+func checkMysqlConfig(c *Config) error {
+	if len(c.MysqlAddr) == 0 {
+		return errors.Errorf("empty mysql_addrs not allowed")
+	}
+
+	return nil
+}
+
 func checkRabbitmqConfig(c *Config) error {
 	if len(c.RabbitmqAddr) == 0 {
 		return errors.Errorf("empty rabbitmq_addr not allowed")
@@ -449,6 +471,10 @@ func (c *Config) IsScript() bool {
 	return strings.ToUpper(c.Target) == _targetScript
 }
 
+func (c *Config) IsMysql() bool {
+	return strings.ToUpper(c.Target) == _targetMysql
+}
+
 func (c *Config) IsExporterEnable() bool {
 	return c.EnableExporter
 }
@@ -476,6 +502,10 @@ func (c *Config) Destination() string {
 		des += "mongodb("
 		des += c.MongodbAddr
 		des += ")"
+	case _targetMysql:
+		des += "mysqldb("
+		des += c.MysqlAddr
+		des += ")"
 	case _targetRabbitmq:
 		des += "rabbitmq("
 		des += c.RabbitmqAddr
@@ -502,6 +532,8 @@ func (c *Config) DestStdName() string {
 		return "RocketMQ"
 	case _targetMongodb:
 		return "MongoDB"
+	case _targetMysql:
+		return "MySQL"
 	case _targetRabbitmq:
 		return "RabbitMQ"
 	case _targetKafka:

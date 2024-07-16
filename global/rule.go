@@ -27,7 +27,7 @@ import (
 	"github.com/juju/errors"
 	"github.com/siddontang/go-mysql/schema"
 	"github.com/vmihailenco/msgpack"
-	"github.com/yuin/gopher-lua"
+	lua "github.com/yuin/gopher-lua"
 	"github.com/yuin/gopher-lua/parse"
 
 	"go-mysql-transfer/model"
@@ -109,6 +109,10 @@ type Rule struct {
 	// ------------------- MONGODB -----------------
 	MongodbDatabase   string `yaml:"mongodb_database"`   //mongodb database 不能为空
 	MongodbCollection string `yaml:"mongodb_collection"` //mongodb collection，可以为空，默认使用表(Table)名称
+
+	// ------------------- MYSQL -----------------
+	MysqlDatabase   string `yaml:"mysql_database"`   //mysql database 不能为空
+	MysqlCollection string `yaml:"mysql_collection"` //mysql collection，可以为空，默认使用表(Table)名称
 
 	// ------------------- RABBITMQ -----------------
 	RabbitmqQueue string `yaml:"rabbitmq_queue"` //queue名称,可以为空，默认使用表(Table)名称
@@ -383,7 +387,7 @@ func (s *Rule) buildPaddingMap() error {
 		for _, c := range includes {
 			_, index := s.TableColumn(c)
 			if index < 0 {
-				return errors.New("include_field must be table column")
+				return errors.New("include_field must be table column: " + c)
 			}
 			paddingMap[c] = s.newPadding(mappings, c)
 		}

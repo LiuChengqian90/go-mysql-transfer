@@ -27,6 +27,7 @@ type PositionStorage interface {
 	Initialize() error
 	Save(pos mysql.Position) error
 	Get() (mysql.Position, error)
+	Reset() error
 }
 
 func NewPositionStorage() PositionStorage {

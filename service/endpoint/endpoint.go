@@ -84,6 +84,10 @@ func NewEndpoint(ds *canal.Canal) Endpoint {
 		return newScriptEndpoint()
 	}
 
+	if cfg.IsMysql() {
+		return newMysqlEndpoint()
+	}
+
 	return nil
 }
 
@@ -275,6 +279,7 @@ func rowMap(req *model.RowRequest, rule *global.Rule, primitive bool) map[string
 		}
 	} else {
 		for _, padding := range rule.PaddingMap {
+			//log.Println(fmt.Sprintf("WrapName:%s, ColumnName:%s", padding.WrapName, padding.ColumnName))
 			kv[padding.WrapName] = convertColumnData(req.Row[padding.ColumnIndex], padding.ColumnMetadata, rule)
 		}
 	}
@@ -318,6 +323,20 @@ func primaryKey(re *model.RowRequest, rule *global.Rule) interface{} {
 		data := re.Row[index]
 		column := rule.TableInfo.Columns[index]
 		return convertColumnData(data, &column, rule)
+	}
+}
+
+func primaryKeyName(re *model.RowRequest, rule *global.Rule) interface{} {
+	if rule.IsCompositeKey { // 组合ID
+		var key string
+		for _, index := range rule.TableInfo.PKColumns {
+			key += stringutil.ToString(re.Row[index])
+		}
+		return key
+	} else {
+		index := rule.TableInfo.PKColumns[0]
+		column := rule.TableInfo.Columns[index]
+		return column.Name
 	}
 }
 

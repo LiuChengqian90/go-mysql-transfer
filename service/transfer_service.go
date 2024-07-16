@@ -87,7 +87,7 @@ func (s *TransferService) initialize() error {
 		return errors.Trace(err)
 	}
 	// 异步，必须要ping下才能确定连接成功
-	if global.Cfg().IsMongodb() {
+	if global.Cfg().IsMongodb() || global.Cfg().IsMysql() {
 		err := endpoint.Ping()
 		if err != nil {
 			return err
@@ -98,7 +98,7 @@ func (s *TransferService) initialize() error {
 	metrics.SetDestState(metrics.DestStateOK)
 
 	s.firstsStart.Store(true)
-	s.startLoop()
+	//s.startLoop()
 
 	return nil
 }
@@ -112,9 +112,9 @@ func (s *TransferService) run() error {
 	s.wg.Add(1)
 	go func(p mysql.Position) {
 		s.canalEnable.Store(true)
-		log.Println(fmt.Sprintf("transfer run from position(%s %d)", p.Name, p.Pos))
+		//log.Println(fmt.Sprintf("transfer run from position(%s %d)", p.Name, p.Pos))
 		if err := s.canal.RunFrom(p); err != nil {
-			log.Println(fmt.Sprintf("start transfer : %v", err))
+			//log.Println(fmt.Sprintf("start transfer : %v", err))
 			logs.Errorf("canal : %v", errors.ErrorStack(err))
 			if s.canalHandler != nil {
 				s.canalHandler.stopListener()
@@ -332,20 +332,7 @@ func (s *TransferService) startLoop() {
 		for {
 			select {
 			case <-ticker.C:
-				if !s.endpointEnable.Load() {
-					err := s.endpoint.Ping()
-					if err != nil {
-						log.Println("destination not available,see the log file for details")
-						logs.Error(err.Error())
-					} else {
-						s.endpointEnable.Store(true)
-						if global.Cfg().IsRabbitmq() {
-							s.endpoint.Connect()
-						}
-						s.StartUp()
-						metrics.SetDestState(metrics.DestStateOK)
-					}
-				}
+				s.StartUp()
 			case <-s.loopStopSignal:
 				return
 			}

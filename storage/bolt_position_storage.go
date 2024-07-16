@@ -69,3 +69,7 @@ func (s *boltPositionStorage) Get() (mysql.Position, error) {
 
 	return entity, err
 }
+
+func (s *boltPositionStorage) Reset() error {
+	return s.Save(mysql.Position{})
+}

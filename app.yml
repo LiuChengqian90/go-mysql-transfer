@@ -31,9 +31,13 @@ web_admin_port: 8060 #web监控端口,默认8060
   #etcd_addrs: 127.0.0.1:2379 #etcd连接地址，多个用逗号分隔
   #etcd_user: test #etcd用户名
   #etcd_password: 123456 #etcd密码
+  #etcd_secure_connection
+	#etcd_cert_file
+	#etcd_key_file
+	#etcd_trusted_ca_file
 
 #目标类型
-target: redis # 支持redis、mongodb、elasticsearch、rocketmq、kafka、rabbitmq
+target: redis # 支持redis、mongodb、elasticsearch、rocketmq、kafka、rabbitmq、mysql
 
 #redis连接配置
 redis_addrs: 127.0.0.1:6379 #redis地址，多个用逗号分隔
@@ -67,6 +71,11 @@ redis_addrs: 127.0.0.1:6379 #redis地址，多个用逗号分隔
 
 #rabbitmq连接配置
 #rabbitmq_addr: amqp://guest:guest@127.0.0.1:5672/  #连接字符串,如: amqp://guest:guest@localhost:5672/
+
+#mysql连接配置
+mysql_addrs: 127.0.0.1:27017 #mysql连接地址，多个用逗号分隔
+mysql_username: #mysql用户名，默认为空
+mysql_password: #mysql密码，默认为空
 
 #规则配置
 rule:
@@ -127,3 +136,8 @@ rule:
     #rabbitmq_queue: user_topic #queue名称,可以为空，默认使用表(Table)名称
 
     #reserve_raw_data: true #保留update之前的数据，针对rocketmq、kafka、rabbitmq有用;默认为false
+
+    #mysql相关配置
+    #mysql_database:  #mysql database不能为空
+    #mysql_collection: #mysql collection，可以为空，默认使用表名称
+

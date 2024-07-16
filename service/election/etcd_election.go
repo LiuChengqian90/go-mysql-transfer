@@ -34,7 +34,7 @@ import (
 	"go-mysql-transfer/util/logs"
 )
 
-const _electionNodeTTL = 2 //秒
+const _electionNodeTTL = 5 //秒
 
 type etcdElection struct {
 	once sync.Once

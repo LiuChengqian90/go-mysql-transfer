@@ -122,6 +122,11 @@ func Save(key, val string, ops clientv3.KV, opts ...clientv3.OpOption) error {
 	ctx, cancel := context.WithTimeout(context.Background(), _etcdOpsTimeout)
 	defer cancel()
 
+	/*cmp := clientv3.Compare(clientv3.ModRevision(key), ">", 0)
+	pr := ops.Txn(ctx).If(cmp)
+	pr.Then(clientv3.OpPut(key, val, opts...))
+	resp, err := pr.Commit()
+	*/
 	resp, err := ops.Txn(ctx).If(
 		clientv3.Compare(clientv3.ModRevision(key), ">", 0),
 	).Then(

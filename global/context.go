@@ -8,8 +8,9 @@ import (
 	"syscall"
 	"time"
 
-	sidlog "github.com/siddontang/go-log/log"
 	"go-mysql-transfer/util/logs"
+
+	sidlog "github.com/siddontang/go-log/log"
 )
 
 var (
@@ -70,7 +71,7 @@ func Initialize(configPath string) error {
 	_bootTime = time.Now()
 	_pid = syscall.Getpid()
 
-	if _config.IsCluster(){
+	if _config.IsCluster() {
 		if _config.EnableWebAdmin {
 			_currentNode = _config.Cluster.BindIp + ":" + strconv.Itoa(_config.WebAdminPort)
 		} else {

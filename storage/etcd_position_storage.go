@@ -59,8 +59,11 @@ func (s *etcdPositionStorage) Get() (mysql.Position, error) {
 	if err != nil {
 		return entity, err
 	}
-
 	err = json.Unmarshal(data, &entity)
 
 	return entity, err
+}
+
+func (s *etcdPositionStorage) Reset() error {
+	return s.Save(mysql.Position{})
 }

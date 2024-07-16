@@ -35,7 +35,7 @@ func (s *zkPositionStorage) Initialize() error {
 		return err
 	}
 
-	err = zookeepers.CreateDirWithDataIfNecessary(global.Cfg().ZkPositionDir(), pos ,_zkConn)
+	err = zookeepers.CreateDirWithDataIfNecessary(global.Cfg().ZkPositionDir(), pos, _zkConn)
 	if err != nil {
 		return err
 	}
@@ -71,4 +71,8 @@ func (s *zkPositionStorage) Get() (mysql.Position, error) {
 	err = json.Unmarshal(data, &entity)
 
 	return entity, err
+}
+
+func (s *zkPositionStorage) Reset() error {
+	return s.Save(mysql.Position{})
 }

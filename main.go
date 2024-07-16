@@ -38,11 +38,12 @@ import (
 )
 
 var (
-	helpFlag     bool
-	cfgPath      string
-	stockFlag    bool
-	positionFlag bool
-	statusFlag   bool
+	helpFlag          bool
+	cfgPath           string
+	stockFlag         bool
+	positionFlag      bool
+	resetPositionflag bool
+	statusFlag        bool
 )
 
 func init() {
@@ -50,6 +51,7 @@ func init() {
 	flag.StringVar(&cfgPath, "config", "app.yml", "application config file")
 	flag.BoolVar(&stockFlag, "stock", false, "stock data import")
 	flag.BoolVar(&positionFlag, "position", false, "set dump position")
+	flag.BoolVar(&resetPositionflag, "resetPosition", false, "set dump position")
 	flag.BoolVar(&statusFlag, "status", false, "display application status")
 	flag.Usage = usage
 }
@@ -98,7 +100,6 @@ func main() {
 
 	if stockFlag {
 		doStock()
-		return
 	}
 
 	// 初始化Storage
@@ -112,18 +113,20 @@ func main() {
 		doStatus()
 		return
 	}
+	if resetPositionflag {
+		doResetPosition()
+		return
+	}
 
 	if positionFlag {
 		doPosition()
 		return
 	}
-
 	err = service.Initialize()
 	if err != nil {
 		println(errors.ErrorStack(err))
 		return
 	}
-
 	if err := metrics.Initialize(); err != nil {
 		println(errors.ErrorStack(err))
 		return
@@ -186,6 +189,11 @@ func doPosition() {
 	}
 	ps.Save(pos)
 	fmt.Printf("The current dump position is : %s %d \n", f, pp)
+}
+
+func doResetPosition() {
+	ps := storage.NewPositionStorage()
+	ps.Reset()
 }
 
 func usage() {

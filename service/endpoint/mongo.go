@@ -19,6 +19,7 @@ package endpoint
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"strings"
 	"sync"
@@ -184,6 +185,7 @@ func (s *MongoEndpoint) Consume(from mysql.Position, rows []*model.RowRequest) e
 			}
 
 			logs.Infof("action:%s, collection:%s, id:%v, data:%v", row.Action, rule.MongodbCollection, id, kvm)
+			log.Println(fmt.Sprintf("action:%s, collection:%s, id:%v, data:%v", row.Action, rule.MongodbCollection, id, kvm))
 
 			array = append(array, model)
 			models[ccKey] = array

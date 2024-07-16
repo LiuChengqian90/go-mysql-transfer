@@ -19,13 +19,14 @@ package service
 
 import (
 	"fmt"
-	"github.com/juju/errors"
-	"github.com/siddontang/go-mysql/canal"
-	"go.uber.org/atomic"
 	"log"
 	"regexp"
 	"strings"
 	"sync"
+
+	"github.com/juju/errors"
+	"github.com/siddontang/go-mysql/canal"
+	"go.uber.org/atomic"
 
 	"go-mysql-transfer/global"
 	"go-mysql-transfer/model"
@@ -78,7 +79,6 @@ func (s *StockService) Run() error {
 		return errors.Trace(err)
 	}
 	s.addDumpDatabaseOrTable()
-
 	endpoint := endpoint.NewEndpoint(s.canal)
 	if err := endpoint.Connect(); err != nil {
 		log.Println(err.Error())
@@ -164,7 +164,6 @@ func (s *StockService) export(fullName, columns string, batch int64, rule *globa
 
 	offset := s.offset(batch)
 	sql := s.buildSql(fullName, columns, offset, rule)
-	logs.Infof("export sql : %s", sql)
 	resultSet, err := s.canal.Execute(sql)
 	if err != nil {
 		logs.Errorf("数据导出错误: %s - %s", sql, err.Error())

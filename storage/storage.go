@@ -18,6 +18,8 @@
 package storage
 
 import (
+	"context"
+	"crypto/tls"
 	"errors"
 	"fmt"
 	"path/filepath"
@@ -28,6 +30,7 @@ import (
 	"go.etcd.io/bbolt"
 	"go.etcd.io/etcd/clientv3"
 	etcdlog "go.etcd.io/etcd/pkg/logutil"
+	"go.etcd.io/etcd/pkg/transport"
 
 	"go-mysql-transfer/global"
 	"go-mysql-transfer/util/byteutil"
@@ -59,13 +62,11 @@ func Initialize() error {
 	if err := initBolt(); err != nil {
 		return err
 	}
-
 	if global.Cfg().IsZk() {
 		if err := initZk(); err != nil {
 			return err
 		}
 	}
-
 	if global.Cfg().IsEtcd() {
 		if err := initEtcd(); err != nil {
 			return err
@@ -80,9 +81,8 @@ func initBolt() error {
 	if err := files.MkdirIfNecessary(blotStorePath); err != nil {
 		return errors.New(fmt.Sprintf("create boltdb store : %s", err.Error()))
 	}
-
 	boltFilePath := filepath.Join(blotStorePath, _boltFileName)
-	bolt, err := bbolt.Open(boltFilePath, _boltFileMode, bbolt.DefaultOptions)
+	bolt, err := bbolt.Open(boltFilePath, _boltFileMode, &bbolt.Options{Timeout: 2 * time.Second})
 	if err != nil {
 		return errors.New(fmt.Sprintf("open boltdb: %s", err.Error()))
 	}
@@ -91,7 +91,6 @@ func initBolt() error {
 		tx.CreateBucketIfNotExists(_positionBucket)
 		return nil
 	})
-
 	_bolt = bolt
 
 	return err
@@ -130,16 +129,85 @@ func initZk() error {
 	return nil
 }
 
+func initEtcdLease(client *clientv3.Client) error {
+	lease := clientv3.Lease(client)
+
+	// 申请一个10s的租约
+	var LeaseGrantResp *clientv3.LeaseGrantResponse
+	var err error
+
+	if LeaseGrantResp, err = lease.Grant(context.TODO(), 10); err != nil {
+		fmt.Println(fmt.Sprintf("租约申请失败:%s", err.Error()))
+		return nil
+	}
+
+	// 租约ID
+	leaseID := LeaseGrantResp.ID
+	var keepResp *clientv3.LeaseKeepAliveResponse
+	var keepRespChan <-chan *clientv3.LeaseKeepAliveResponse // 只读管道
+
+	// 自动续租
+	if keepRespChan, err = lease.KeepAlive(context.TODO(), leaseID); err != nil {
+		fmt.Println("自动续租失败", err)
+		fmt.Println(fmt.Sprintf("租约申请失败:%s", err.Error()))
+		return nil
+	}
+	go func() {
+		for {
+			select {
+			case keepResp = <-keepRespChan:
+				if keepRespChan == nil {
+					fmt.Println("租约已经失效了")
+					fmt.Println(fmt.Sprintf("租约已经失效了"))
+					return
+				} else {
+					// KeepAlive每秒会续租一次,所以就会收到一次应答
+					fmt.Println(fmt.Sprintf("收到租约应答:%v", keepResp))
+				}
+			}
+		}
+	}()
+	return nil
+}
+
 func initEtcd() error {
 	etcdlog.DefaultZapLoggerConfig = logagent.EtcdZapLoggerConfig()
 	clientv3.SetLogger(logagent.NewEtcdLoggerAgent())
+	clusterConfig := global.Cfg().Cluster
+	var tlsConfig *tls.Config
+	var endpointsPrefix string
 
-	list := strings.Split(global.Cfg().Cluster.EtcdAddrs, ",")
+	if clusterConfig.EtcdSecureConnection {
+		tlsInfo := transport.TLSInfo{
+			CertFile:      clusterConfig.EtcdCertFile,
+			KeyFile:       clusterConfig.EtcdKeyFile,
+			TrustedCAFile: clusterConfig.EtcdTrustedCaFile,
+		}
+		config, err := tlsInfo.ClientConfig()
+		if err != nil {
+			return err
+		}
+		tlsConfig = config
+		endpointsPrefix = "https://"
+	} else {
+		tlsConfig = nil
+		endpointsPrefix = "http://"
+	}
+
+	endpoints := strings.Split(clusterConfig.EtcdAddrs, ",")
+	realEndpoints := make([]string, len(endpoints))
+	for i, e := range endpoints {
+		realEndpoints[i] = endpointsPrefix + e
+	}
+
 	config := clientv3.Config{
-		Endpoints:   list,
-		Username:    global.Cfg().Cluster.EtcdUser,
-		Password:    global.Cfg().Cluster.EtcdPassword,
-		DialTimeout: 1 * time.Second,
+		Endpoints: realEndpoints,
+		TLS:       tlsConfig,
+		//Username:             clusterConfig.EtcdUser,
+		//Password:             clusterConfig.EtcdPassword,
+		DialTimeout:          1 * time.Second,
+		DialKeepAliveTime:    15 * time.Second,
+		DialKeepAliveTimeout: 15 * time.Second,
 	}
 
 	client, err := clientv3.New(config)
