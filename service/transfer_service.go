@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"log"
 	"regexp"
+	"strings"
 	"sync"
 	"time"
 
@@ -112,14 +113,23 @@ func (s *TransferService) run() error {
 	s.wg.Add(1)
 	go func(p mysql.Position) {
 		s.canalEnable.Store(true)
-		//log.Println(fmt.Sprintf("transfer run from position(%s %d)", p.Name, p.Pos))
-		if err := s.canal.RunFrom(p); err != nil {
-			//log.Println(fmt.Sprintf("start transfer : %v", err))
+		var err error
+		if err = s.canal.RunFrom(p); err != nil {
 			logs.Errorf("canal : %v", errors.ErrorStack(err))
-			if s.canalHandler != nil {
-				s.canalHandler.stopListener()
+			log.Println("canal error")
+			if strings.Contains(strings.ToLower(err.Error()), "could not find first log file") {
+				log.Println("canal Reset positionDao")
+				s.positionDao.Reset()
+				if p, err = s.positionDao.Get(); err != nil {
+					err = s.canal.RunFrom(p)
+				}
 			}
-			s.canalEnable.Store(false)
+		}
+
+		if err != nil && s.canalHandler != nil {
+			logs.Errorf("canal before canalHandler: %v", errors.ErrorStack(err))
+			log.Println("canal before canalHandler")
+			s.canalHandler.stopListener()
 		}
 
 		logs.Info("Canal is Closed")
@@ -175,6 +185,7 @@ func (s *TransferService) stopDump() {
 	}
 
 	if s.canalHandler != nil {
+		log.Println("stopDump stopListener")
 		s.canalHandler.stopListener()
 		s.canalHandler = nil
 	}

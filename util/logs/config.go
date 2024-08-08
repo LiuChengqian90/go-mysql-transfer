@@ -5,7 +5,7 @@ const (
 	_logLevelInfo    = "info"
 	_logLevelWarn    = "warn"
 	_logLevelError   = "error"
-	_logMaxSize      = 500
+	_logMaxSize      = 100
 	_logMaxAge       = 30
 	_logEncodingJson = "json"
 )

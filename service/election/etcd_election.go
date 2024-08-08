@@ -96,7 +96,7 @@ func (s *etcdElection) doElect() {
 					logs.Warn("etcd session has done")
 					shouldBreak = true
 					s.beFollower("")
-					break
+					return
 				case <-ctx.Done():
 					ctxTmp, _ := context.WithTimeout(context.Background(), time.Second*_electionNodeTTL)
 					elc.Resign(ctxTmp)
@@ -146,7 +146,7 @@ func (s *etcdElection) ensureFollower() {
 
 func (s *etcdElection) Nodes() []string {
 	var nodes []string
-	ls, err := etcds.List("/transfer/myTransfer/election", storage.EtcdOps())
+	ls, err := etcds.List(global.Cfg().ZkElectionDir(), storage.EtcdOps())
 	if err == nil {
 		for _, v := range ls {
 			nodes = append(nodes, string(v.Value))

@@ -199,7 +199,7 @@ func (s *StockService) buildSql(fullName, columns string, offset int64, rule *gl
 	}
 
 	i := rule.TableInfo.PKColumns[0]
-	n := rule.TableInfo.GetPKColumn(i).Name
+	n := rule.TableInfo.Columns[i].Name
 	t := "select b.* from (select %s from %s order by %s limit %d,%d) a left join %s b on a.%s=b.%s"
 	sql := fmt.Sprintf(t, n, fullName, rule.OrderByColumn, offset, size, fullName, n, n)
 	return sql

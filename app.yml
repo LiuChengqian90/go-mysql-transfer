@@ -10,6 +10,10 @@ flavor: mysql #mysql or mariadb,默认mysql
 #data_dir: D:\\transfer #应用产生的数据存放地址，包括日志、缓存数据等，默认当前运行目录下store文件夹
 #logger:
 #  level: info #日志级别；支持：debug|info|warn|error，默认info
+#  store: #日志存储目录
+#  file_name: system.log #日志文件名称，默认system.log
+#  max_size: 100 #日志文件大小，单位MB，默认100MB
+#  max_age: 30 #日志文件保存天数，默认30天
 
 #maxprocs: 50 #并发协（线）程数量，默认为: CPU核数*2；一般情况下不需要设置此项
 #bulk_size: 1000 #每批处理数量，不写默认100，可以根据带宽、机器性能等调整;如果是全量数据初始化时redis建议设为1000，其他接收端酌情调大
@@ -19,7 +23,7 @@ flavor: mysql #mysql or mariadb,默认mysql
 #exporter_addr: 9595 #prometheus exporter端口，默认9595
 
 #web admin相关配置
-enable_web_admin: true #是否启用web admin，默认false
+enable_web_admin: false #是否启用web admin，默认false
 web_admin_port: 8060 #web监控端口,默认8060
 
 #cluster: # 集群相关配置
@@ -37,7 +41,7 @@ web_admin_port: 8060 #web监控端口,默认8060
 	#etcd_trusted_ca_file
 
 #目标类型
-target: redis # 支持redis、mongodb、elasticsearch、rocketmq、kafka、rabbitmq、mysql
+target: redis # 支持redis、mongodb、elasticsearch、rocketmq、kafka、rabbitmq
 
 #redis连接配置
 redis_addrs: 127.0.0.1:6379 #redis地址，多个用逗号分隔
@@ -71,11 +75,6 @@ redis_addrs: 127.0.0.1:6379 #redis地址，多个用逗号分隔
 
 #rabbitmq连接配置
 #rabbitmq_addr: amqp://guest:guest@127.0.0.1:5672/  #连接字符串,如: amqp://guest:guest@localhost:5672/
-
-#mysql连接配置
-mysql_addrs: 127.0.0.1:27017 #mysql连接地址，多个用逗号分隔
-mysql_username: #mysql用户名，默认为空
-mysql_password: #mysql密码，默认为空
 
 #规则配置
 rule:
@@ -136,8 +135,3 @@ rule:
     #rabbitmq_queue: user_topic #queue名称,可以为空，默认使用表(Table)名称
 
     #reserve_raw_data: true #保留update之前的数据，针对rocketmq、kafka、rabbitmq有用;默认为false
-
-    #mysql相关配置
-    #mysql_database:  #mysql database不能为空
-    #mysql_collection: #mysql collection，可以为空，默认使用表名称
-

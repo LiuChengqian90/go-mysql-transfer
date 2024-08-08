@@ -59,17 +59,19 @@ func (s *MysqlEndpoint) Connect() error {
 			logs.Errorf("connect to mysql error: %s", err.Error())
 			return err
 		}
+		if conn.Ping() != nil {
+			logs.Errorf("ping %s mysql error: %s", rule.MysqlDatabase+"."+rule.MysqlCollection, err.Error())
+			return err
+		}
 		ccKey := s.collectionKey(rule.MysqlDatabase, rule.MysqlCollection)
 		s.collections[ccKey] = conn
 		s.collwg[ccKey] = &sync.RWMutex{}
 	}
 	s.collLock.Unlock()
-
 	return nil
 }
 
 func (s *MysqlEndpoint) Ping() error {
-
 	for key, collention := range s.collections {
 		err := collention.Ping()
 		if err != nil {
@@ -96,7 +98,7 @@ func (s *MysqlEndpoint) collection(key cKey) *client.Conn {
 	s.collLock.RLock()
 	c, ok := s.collections[key]
 	s.collLock.RUnlock()
-	if ok {
+	if ok && c.Ping() == nil {
 		return c
 	}
 
@@ -104,6 +106,10 @@ func (s *MysqlEndpoint) collection(key cKey) *client.Conn {
 	conn, err := client.Connect(global.Cfg().MysqlAddr, global.Cfg().MysqlUsername, global.Cfg().MysqlPassword, key.database)
 	if err != nil {
 		logs.Errorf("connect to mysql error: %s", err.Error())
+		return nil
+	}
+	if conn.Ping() != nil {
+		logs.Errorf("ping %s mysql error: %s", key.collection, err.Error())
 		return nil
 	}
 	s.collections[key] = conn
@@ -162,6 +168,10 @@ func (s *MysqlEndpoint) Close() {
 func (s *MysqlEndpoint) buildDeleteSql(ccKey cKey, row *model.RowRequest, kvm map[string]interface{}) (int64, error) {
 	sql := fmt.Sprintf("delete from %s where %s = ?", ccKey.collection, kvm[PrimaryKeyName])
 	collection := s.collection(ccKey)
+	if collection == nil {
+		logs.Errorf("buildDeleteSql get collection error: %s", ccKey.collection)
+		return 0, fmt.Errorf("buildDeleteSql get collection error: %s", ccKey.collection)
+	}
 	stmt, err := collection.Prepare(sql)
 	if err != nil {
 		logs.Errorf("buildDeleteSql prepare sql error: %s", err.Error())
@@ -195,8 +205,13 @@ func (s *MysqlEndpoint) buildUpdateSql(ccKey cKey, row *model.RowRequest, kvm ma
 	//todo ,filter primary key
 	sql := fmt.Sprintf("update %s set %s where %s = ?", ccKey.collection, strings.Join(keys, ","), kvm[PrimaryKeyName])
 	collection := s.collection(ccKey)
+	if collection == nil {
+		logs.Errorf("buildUpdateSql get collection error: %s", ccKey.collection)
+		return 0, fmt.Errorf("buildUpdateSql get collection error: %s", ccKey.collection)
+	}
 	stmt, err := collection.Prepare(sql)
 	if err != nil {
+		logs.Infof("buildUpdateSql prepare sql: %s", sql)
 		logs.Errorf("buildUpdateSql prepare sql error: %s", err.Error())
 		return 0, err
 	}

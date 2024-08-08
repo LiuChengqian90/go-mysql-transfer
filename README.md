@@ -6,7 +6,7 @@ go-mysql-transfer是一款MySQL数据库实时增量同步工具。
 
 能够监听MySQL二进制日志(Binlog)的变动，将变更内容形成指定格式的消息，实时发送到接收端。从而在数据库和接收端之间形成一个高性能、低延迟的增量数据同步更新管道。
 
-# 特性  
+# 特性
 
 1、简单，不依赖其它组件，一键部署
 
@@ -123,7 +123,7 @@ server_id=1 # 配置 MySQL replaction 需要定义，不要和 go-mysql-transfer
 
 # gitee
 
-如果您的github访问不稳定，可以在码云(gitee)上star项目：[go-mysql-transfer 码云(gitee)](https://gitee.com/wj596/go-mysql-transfer) 
+如果您的github访问不稳定，可以在码云(gitee)上star项目：[go-mysql-transfer 码云(gitee)](https://gitee.com/wj596/go-mysql-transfer)
 
 # 使用说明
 

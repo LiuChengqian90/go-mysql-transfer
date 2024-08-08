@@ -1,6 +1,7 @@
 package nets
 
 import (
+	"fmt"
 	"net"
 	"regexp"
 	"strconv"
@@ -14,11 +15,7 @@ func CheckIp(addr string) bool {
 	}
 
 	a := net.ParseIP(addr)
-	if a == nil {
-		return false
-	}
-
-	return true
+	return a != nil
 }
 
 // 检测 地址是否为 IP:端口 格式
@@ -51,7 +48,7 @@ func CheckHostAddr(addr string) bool {
 		return false
 	}
 
-	if match == false {
+	if !match {
 		return false
 	}
 	return true
@@ -117,4 +114,15 @@ func GetIpList() ([]string, error) {
 		}
 	}
 	return ips, nil
+}
+
+func GetPrimaryIP(addr string) string {
+	conn, err := net.Dial("tcp", addr)
+	if err != nil {
+		panic(err)
+	}
+	defer conn.Close()
+	localAddr := conn.LocalAddr().(*net.TCPAddr)
+	fmt.Println(fmt.Sprintf("ip:%s", localAddr.IP.String()))
+	return localAddr.IP.String()
 }

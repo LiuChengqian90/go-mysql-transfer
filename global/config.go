@@ -49,7 +49,7 @@ const (
 
 	_dataDir = "store"
 
-	_zkRootDir = "/transfer" // ZooKeeper and Etcd root
+	_zkRootDir = "/vnet-mysql-transfer" // ZooKeeper and Etcd root
 
 	_flushBulkInterval = 200
 	_flushBulkSize     = 100
@@ -307,15 +307,11 @@ func checkClusterConfig(c *Config) error {
 		return errors.New("配置文件错误：配置项'bind_ip' 应为一个IP地址，可以为空")
 	}
 	if c.Cluster.BindIp == "" {
-		ips, err := nets.GetIpList()
-		if err != nil {
-			return err
+		ip := nets.GetPrimaryIP(c.Addr)
+		if ip == "" {
+			return errors.New(fmt.Sprintf("获取bind ip 错误"))
 		}
-		if len(ips) > 1 {
-			return errors.New(fmt.Sprintf(
-				"检测到机器上存在多个IP地址：%v，无法确定向其他集群节点暴露那个IP。请在配置文件'bind_ip'配置项中指定", ips))
-		}
-		c.Cluster.BindIp = ips[0]
+		c.Cluster.BindIp = ip
 	}
 
 	if c.IsZk() {
@@ -559,6 +555,8 @@ func (c *Config) DestAddr() string {
 		return c.KafkaAddr
 	case _targetElasticsearch:
 		return c.ElsAddr
+	case _targetMysql:
+		return c.MysqlAddr
 	}
 
 	return ""

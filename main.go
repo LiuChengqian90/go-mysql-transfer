@@ -48,7 +48,7 @@ var (
 
 func init() {
 	flag.BoolVar(&helpFlag, "help", false, "this help")
-	flag.StringVar(&cfgPath, "config", "app.yml", "application config file")
+	flag.StringVar(&cfgPath, "config", "/etc/vnet-mysql-transfer/app.yml", "application config file")
 	flag.BoolVar(&stockFlag, "stock", false, "stock data import")
 	flag.BoolVar(&positionFlag, "position", false, "set dump position")
 	flag.BoolVar(&resetPositionflag, "resetPosition", false, "set dump position")
@@ -57,34 +57,6 @@ func init() {
 }
 
 func main() {
-
-	//stockFlag = true
-
-	//cfgPath = "D:\\transfer\\app.yml"
-
-	//cfgPath = "D:\\transfer\\release_test_luascript.yml"
-
-	//cfgPath = "D:\\transfer\\rabbitmq_release_test_lua.yml"
-	//cfgPath = "D:\\transfer\\rabbitmq_release_test_rule.yml"
-
-	// cfgPath = "D:\\transfer\\kafka_release_test_lua.yml"
-	// cfgPath = "D:\\transfer\\kafka_release_test_rule.yml"
-
-	//cfgPath = "D:\\transfer\\rocketmq_release_test_lua.yml"
-	//cfgPath = "D:\\transfer\\rocketmq_release_test_rule.yml"
-
-	//cfgPath = "D:\\transfer\\es7_release_test_lua.yml"
-	//cfgPath = "D:\\transfer\\es7_release_test_rule.yml"
-
-	//cfgPath = "D:\\transfer\\es6_release_test_lua.yml"
-	//cfgPath = "D:\\transfer\\es6_release_test_rule.yml"
-
-	//cfgPath = "D:\\transfer\\redis_release_test_lua.yml"
-	//cfgPath = "D:\\transfer\\redis_release_test_rule.yml"
-
-	//cfgPath = "D:\\transfer\\mongo_release_test_rule.yml"
-	//cfgPath = "D:\\transfer\\mongo_release_test_lua.yml"
-
 	flag.Parse()
 	if helpFlag {
 		flag.Usage()
