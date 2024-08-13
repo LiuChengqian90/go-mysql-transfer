@@ -18,14 +18,15 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"log"
+	"net/http"
 	"os"
-	"os/signal"
 	"regexp"
-	"syscall"
 
+	"github.com/gin-gonic/gin"
 	"github.com/juju/errors"
 	"github.com/siddontang/go-mysql/mysql"
 
@@ -70,10 +71,6 @@ func main() {
 		return
 	}
 
-	if stockFlag {
-		doStock()
-	}
-
 	// 初始化Storage
 	err = storage.Initialize()
 	if err != nil {
@@ -109,23 +106,41 @@ func main() {
 		return
 	}
 	service.StartUp() // start application
+	log.Println("service StartUp")
 
-	s := make(chan os.Signal, 1)
-	signal.Notify(s, os.Kill, os.Interrupt, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
-	sin := <-s
-	log.Printf("application stoped，signal: %s \n", sin.String())
+	go startHealthCheckServer(context.Background(), global.Cfg().HcPort)
+	log.Println("healthcheck StartUp")
+	<-context.Background().Done()
 
-	web.Close()
-	service.Close()
-	storage.Close()
+	defer web.Close()
+	defer service.Close()
+	defer storage.Close()
 }
 
-func doStock() {
-	stock := service.NewStockService()
-	if err := stock.Run(); err != nil {
-		println(errors.ErrorStack(err))
-	}
-	stock.Close()
+func exit(ch <-chan os.Signal, graceCancel context.CancelFunc) {
+	// first close hc port
+	log.Println("healthcheck stop")
+	graceCancel()
+}
+
+func startHealthCheckServer(ctx context.Context, port int) {
+	endpoint := fmt.Sprintf(":%d", port)
+	r := gin.New()
+	r.Use(gin.Recovery())
+	r.GET("/healthy", func(c *gin.Context) {
+		c.JSON(http.StatusOK, gin.H{"response": "OK"})
+	})
+	server := http.Server{Addr: endpoint, Handler: r}
+	go func() {
+		err := server.ListenAndServe()
+		if err != nil {
+			log.Println("HealthCheck Server failed")
+		}
+	}()
+
+	<-ctx.Done()
+	_ = server.Shutdown(context.Background())
+	log.Println("Health check listener stopped")
 }
 
 func doStatus() {

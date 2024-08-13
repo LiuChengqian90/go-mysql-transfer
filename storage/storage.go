@@ -59,20 +59,18 @@ var (
 )
 
 func Initialize() error {
-	if err := initBolt(); err != nil {
-		return err
-	}
+
 	if global.Cfg().IsZk() {
 		if err := initZk(); err != nil {
 			return err
 		}
-	}
-	if global.Cfg().IsEtcd() {
+	} else if global.Cfg().IsEtcd() {
 		if err := initEtcd(); err != nil {
 			return err
 		}
+	} else if err := initBolt(); err != nil {
+		return err
 	}
-
 	return nil
 }
 

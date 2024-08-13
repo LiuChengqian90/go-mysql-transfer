@@ -53,6 +53,7 @@ func newMysqlEndpoint() *MysqlEndpoint {
 
 func (s *MysqlEndpoint) Connect() error {
 	s.collLock.Lock()
+	defer s.collLock.Unlock()
 	for _, rule := range global.RuleInsList() {
 		conn, err := client.Connect(global.Cfg().MysqlAddr, global.Cfg().MysqlUsername, global.Cfg().MysqlPassword, rule.MysqlDatabase)
 		if err != nil {
@@ -67,7 +68,6 @@ func (s *MysqlEndpoint) Connect() error {
 		s.collections[ccKey] = conn
 		s.collwg[ccKey] = &sync.RWMutex{}
 	}
-	s.collLock.Unlock()
 	return nil
 }
 
@@ -103,6 +103,7 @@ func (s *MysqlEndpoint) collection(key cKey) *client.Conn {
 	}
 
 	s.collLock.Lock()
+	defer s.collLock.Unlock()
 	conn, err := client.Connect(global.Cfg().MysqlAddr, global.Cfg().MysqlUsername, global.Cfg().MysqlPassword, key.database)
 	if err != nil {
 		logs.Errorf("connect to mysql error: %s", err.Error())
@@ -114,7 +115,6 @@ func (s *MysqlEndpoint) collection(key cKey) *client.Conn {
 	}
 	s.collections[key] = conn
 	s.collwg[key] = &sync.RWMutex{}
-	s.collLock.Unlock()
 	return conn
 }
 
@@ -138,7 +138,7 @@ func (s *MysqlEndpoint) Stock(rows []*model.RowRequest) int64 {
 		kvm[PrimaryKeyName] = primaryKeyName(row, rule)
 		kvm[PrimaryKeyValue] = id
 		ccKey := s.collectionKey(rule.MysqlDatabase, rule.MysqlCollection)
-		s.collwg[ccKey].Lock()
+
 		switch row.Action {
 		case canal.InsertAction:
 			rr, _ := s.buildInsertSql(ccKey, row, kvm)
@@ -150,7 +150,6 @@ func (s *MysqlEndpoint) Stock(rows []*model.RowRequest) int64 {
 			rr, _ := s.buildDeleteSql(ccKey, row, kvm)
 			sum += rr
 		}
-		s.collwg[ccKey].Unlock()
 	}
 
 	return sum
@@ -172,6 +171,8 @@ func (s *MysqlEndpoint) buildDeleteSql(ccKey cKey, row *model.RowRequest, kvm ma
 		logs.Errorf("buildDeleteSql get collection error: %s", ccKey.collection)
 		return 0, fmt.Errorf("buildDeleteSql get collection error: %s", ccKey.collection)
 	}
+	s.collwg[ccKey].Lock()
+	defer s.collwg[ccKey].Unlock()
 	stmt, err := collection.Prepare(sql)
 	if err != nil {
 		logs.Errorf("buildDeleteSql prepare sql error: %s", err.Error())
@@ -209,6 +210,9 @@ func (s *MysqlEndpoint) buildUpdateSql(ccKey cKey, row *model.RowRequest, kvm ma
 		logs.Errorf("buildUpdateSql get collection error: %s", ccKey.collection)
 		return 0, fmt.Errorf("buildUpdateSql get collection error: %s", ccKey.collection)
 	}
+	s.collwg[ccKey].Lock()
+	defer s.collwg[ccKey].Unlock()
+
 	stmt, err := collection.Prepare(sql)
 	if err != nil {
 		logs.Infof("buildUpdateSql prepare sql: %s", sql)
@@ -222,7 +226,6 @@ func (s *MysqlEndpoint) buildUpdateSql(ccKey cKey, row *model.RowRequest, kvm ma
 	if err != nil {
 		logs.Errorf("buildUpdateSql execute sql error: %s", err.Error())
 	}
-
 	return int64(result.AffectedRows), err
 }
 
@@ -246,6 +249,9 @@ func (s *MysqlEndpoint) buildInsertSql(ccKey cKey, row *model.RowRequest, kvm ma
 
 	sql := fmt.Sprintf("insert into %s (%s) values (%s)", ccKey.collection, strings.Join(keys, ","), strings.Join(tmp_values, ","))
 	collection := s.collection(ccKey)
+	s.collwg[ccKey].Lock()
+	defer s.collwg[ccKey].Unlock()
+
 	stmt, err := collection.Prepare(sql)
 	if err != nil {
 		logs.Errorf("buildInsertSql prepare sql error: %s", err.Error())
@@ -255,19 +261,29 @@ func (s *MysqlEndpoint) buildInsertSql(ccKey cKey, row *model.RowRequest, kvm ma
 
 	result, err := stmt.Execute(values...)
 	if err != nil {
-		logs.Errorf("buildInsertSql execute sql error: %s", err.Error())
+		logs.Infof("buildInsertSql execute sql error: %s", err.Error())
 		if s.isDuplicateKeyError(err.Error()) {
-			s.buildDeleteSql(ccKey, row, kvm)
+			// delete and retry
+			delSql := fmt.Sprintf("delete from %s where %s = ?", ccKey.collection, kvm[PrimaryKeyName])
+			delStmt, err := collection.Prepare(delSql)
+			if err != nil {
+				logs.Errorf("buildInsertSql prepare delete sql error: %s", err.Error())
+				return 0, err
+			}
+			defer delStmt.Close()
+			_, err = delStmt.Execute(kvm[PrimaryKeyValue])
+			if err != nil {
+				logs.Errorf("buildInsertSql execute delete sql error: %s", err.Error())
+			}
 			result, err = stmt.Execute(values...)
 			if err != nil {
-				logs.Errorf("execute  retry sql error: %s", err.Error())
+				logs.Errorf("execute retry sql error: %s", err.Error())
 				return 0, err
 			}
 		} else {
 			return 0, err
 		}
 	}
-
 	defer result.Close()
 	return int64(result.AffectedRows), err
 

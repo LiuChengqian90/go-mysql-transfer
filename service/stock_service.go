@@ -139,9 +139,7 @@ func (s *StockService) Run() error {
 	}
 
 	s.wg.Wait()
-
 	fmt.Println(fmt.Sprintf("共耗时 ：%d（毫秒）", dates.NowMillisecond()-startTime))
-
 	for k, v := range s.totalRows {
 		vv, ok := s.counter[k]
 		if ok {
@@ -151,9 +149,7 @@ func (s *StockService) Run() error {
 			}
 		}
 	}
-
 	s.endpoint.Close() // 关闭客户端
-
 	return nil
 }
 

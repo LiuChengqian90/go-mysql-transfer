@@ -36,7 +36,6 @@ func (s *ClusterService) boot() error {
 	}
 
 	s.startElectListener()
-
 	return nil
 }
 

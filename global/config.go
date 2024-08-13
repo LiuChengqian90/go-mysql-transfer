@@ -51,9 +51,10 @@ const (
 
 	_zkRootDir = "/vnet-mysql-transfer" // ZooKeeper and Etcd root
 
-	_flushBulkInterval = 200
+	_flushBulkInterval = 500
 	_flushBulkSize     = 100
 
+	_hcPort = 5286
 	// update or insert
 	UpsertAction = "upsert"
 )
@@ -77,6 +78,8 @@ type Config struct {
 
 	Maxprocs int   `yaml:"maxprocs"` // 最大协程数，默认CPU核心数*2
 	BulkSize int64 `yaml:"bulk_size"`
+
+	HcPort int `yaml:"hc_port"` // 健康检查端口，默认5286
 
 	FlushBulkInterval int `yaml:"flush_bulk_interval"`
 
@@ -277,6 +280,10 @@ func checkConfig(c *Config) error {
 
 	if c.Maxprocs <= 0 {
 		c.Maxprocs = runtime.NumCPU() * 2
+	}
+
+	if c.HcPort == 0 {
+		c.HcPort = _hcPort
 	}
 
 	if c.RuleConfigs == nil {

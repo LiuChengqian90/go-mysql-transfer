@@ -104,6 +104,14 @@ func (s *TransferService) initialize() error {
 	return nil
 }
 
+func doStock() {
+	stock := NewStockService()
+	if err := stock.Run(); err != nil {
+		println(errors.ErrorStack(err))
+	}
+	stock.Close()
+}
+
 func (s *TransferService) run() error {
 	current, err := s.positionDao.Get()
 	if err != nil {
@@ -114,11 +122,17 @@ func (s *TransferService) run() error {
 	go func(p mysql.Position) {
 		s.canalEnable.Store(true)
 		var err error
+
+		if p.Compare(mysql.Position{}) == 0 {
+			doStock()
+		}
+
 		if err = s.canal.RunFrom(p); err != nil {
 			logs.Errorf("canal : %v", errors.ErrorStack(err))
 			log.Println("canal error")
 			if strings.Contains(strings.ToLower(err.Error()), "could not find first log file") {
 				log.Println("canal Reset positionDao")
+				doStock()
 				s.positionDao.Reset()
 				if p, err = s.positionDao.Get(); err != nil {
 					err = s.canal.RunFrom(p)
