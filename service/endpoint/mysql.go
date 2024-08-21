@@ -27,6 +27,7 @@ import (
 	"github.com/siddontang/go-mysql/mysql"
 	"go.mongodb.org/mongo-driver/mongo/options"
 
+	"go-mysql-transfer/constant"
 	"go-mysql-transfer/global"
 	"go-mysql-transfer/model"
 	"go-mysql-transfer/util/logs"
@@ -114,7 +115,6 @@ func (s *MysqlEndpoint) collection(key cKey) *client.Conn {
 		return nil
 	}
 	s.collections[key] = conn
-	s.collwg[key] = &sync.RWMutex{}
 	return conn
 }
 
@@ -166,13 +166,13 @@ func (s *MysqlEndpoint) Close() {
 
 func (s *MysqlEndpoint) buildDeleteSql(ccKey cKey, row *model.RowRequest, kvm map[string]interface{}) (int64, error) {
 	sql := fmt.Sprintf("delete from %s where %s = ?", ccKey.collection, kvm[PrimaryKeyName])
+	s.collwg[ccKey].Lock()
+	defer s.collwg[ccKey].Unlock()
 	collection := s.collection(ccKey)
 	if collection == nil {
 		logs.Errorf("buildDeleteSql get collection error: %s", ccKey.collection)
 		return 0, fmt.Errorf("buildDeleteSql get collection error: %s", ccKey.collection)
 	}
-	s.collwg[ccKey].Lock()
-	defer s.collwg[ccKey].Unlock()
 	stmt, err := collection.Prepare(sql)
 	if err != nil {
 		logs.Errorf("buildDeleteSql prepare sql error: %s", err.Error())
@@ -196,22 +196,28 @@ func (s *MysqlEndpoint) buildUpdateSql(ccKey cKey, row *model.RowRequest, kvm ma
 		if k == PrimaryKeyName || k == PrimaryKeyValue || k == kvm[PrimaryKeyName] {
 			continue
 		}
-		if v == nil || v == "" {
+		if v == nil {
 			continue
 		}
-		keys = append(keys, k+" = ?")
+
+		if _, ok := constant.MysqlReservedWords[strings.ToUpper(k)]; ok {
+			keys = append(keys, "`"+k+"`"+"=?")
+		} else {
+			keys = append(keys, k+"=?")
+		}
+
 		values = append(values, v)
 	}
 
 	//todo ,filter primary key
+	s.collwg[ccKey].Lock()
+	defer s.collwg[ccKey].Unlock()
 	sql := fmt.Sprintf("update %s set %s where %s = ?", ccKey.collection, strings.Join(keys, ","), kvm[PrimaryKeyName])
 	collection := s.collection(ccKey)
 	if collection == nil {
 		logs.Errorf("buildUpdateSql get collection error: %s", ccKey.collection)
 		return 0, fmt.Errorf("buildUpdateSql get collection error: %s", ccKey.collection)
 	}
-	s.collwg[ccKey].Lock()
-	defer s.collwg[ccKey].Unlock()
 
 	stmt, err := collection.Prepare(sql)
 	if err != nil {
@@ -239,21 +245,27 @@ func (s *MysqlEndpoint) buildInsertSql(ccKey cKey, row *model.RowRequest, kvm ma
 		if k == PrimaryKeyName || k == PrimaryKeyValue {
 			continue
 		}
-		if v == nil || v == "" {
+		if v == nil {
 			continue
 		}
-		keys = append(keys, k)
+
+		if _, ok := constant.MysqlReservedWords[strings.ToUpper(k)]; ok {
+			keys = append(keys, "`"+k+"`")
+		} else {
+			keys = append(keys, k)
+		}
 		values = append(values, v)
 		tmp_values = append(tmp_values, "?")
 	}
-
-	sql := fmt.Sprintf("insert into %s (%s) values (%s)", ccKey.collection, strings.Join(keys, ","), strings.Join(tmp_values, ","))
-	collection := s.collection(ccKey)
 	s.collwg[ccKey].Lock()
 	defer s.collwg[ccKey].Unlock()
 
+	sql := fmt.Sprintf("insert into %s (%s) values (%s)", ccKey.collection, strings.Join(keys, ","), strings.Join(tmp_values, ","))
+	collection := s.collection(ccKey)
+
 	stmt, err := collection.Prepare(sql)
 	if err != nil {
+		logs.Infof("buildInsertSql prepare sql: %s", sql)
 		logs.Errorf("buildInsertSql prepare sql error: %s", err.Error())
 		return 0, err
 	}

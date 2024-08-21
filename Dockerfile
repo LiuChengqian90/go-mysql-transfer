@@ -10,4 +10,4 @@ FROM hub.byted.org/base/vestack.debian-slim:bookworm-security
 COPY --from=0 /go/src/go-mysql-transfer/vnet-mysql-transfer /usr/local/bin/
 COPY --from=0 /go/src/go-mysql-transfer/app.yml /etc/vnet-mysql-transfer/
 ENV TZ=Asia/Shanghai
-CMD ["vnet-mysql-transfer","-stock"]
+CMD ["vnet-mysql-transfer"]

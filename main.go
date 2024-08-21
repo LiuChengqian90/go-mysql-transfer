@@ -71,6 +71,10 @@ func main() {
 		return
 	}
 
+	if stockFlag {
+		doStock()
+	}
+
 	// 初始化Storage
 	err = storage.Initialize()
 	if err != nil {
@@ -141,6 +145,14 @@ func startHealthCheckServer(ctx context.Context, port int) {
 	<-ctx.Done()
 	_ = server.Shutdown(context.Background())
 	log.Println("Health check listener stopped")
+}
+
+func doStock() {
+	stock := service.NewStockService()
+	if err := stock.Run(); err != nil {
+		println(errors.ErrorStack(err))
+	}
+	stock.Close()
 }
 
 func doStatus() {
